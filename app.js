@@ -56,6 +56,7 @@ mongoose.connection.on('disconnected', () => {
 	mogooseConnecting ();
 });
 
+//스키마 설정
 var ChatRoom = require('./models/chatRoom');
 var Chat = require('./models/chat');
 
@@ -68,15 +69,19 @@ var socketIds = {};			//socket id들
 
 // On client connect
 io.on('connection', function(socket){
-
+	var username;
+	//소켓아이디와 client 유저 아이디 연결
 	socket.on('setSocketId', function(userName){
 		console.log("setSocketId");
-		var username=userName;
+		socket.username = userName;
+		username = socket.username;
 		console.log("data"+username);
+		
 		socketIds[username] = socket.id;
+
 		console.log(socketIds);
 
-	})
+	});
 
 		console.log("Client connected...");
 		console.log("소켓아이디"+socket.id);
@@ -97,18 +102,37 @@ io.on('connection', function(socket){
 		console.log("send message");
 		username = socket.username;
 		msgContent = msgFormat(username, message);
-		socket.emit('send message', msgContent); //나한테도 전송
-		socket.to(socketIds[selectuser]).emit('send message', msgContent); //남한테도 전송
+		console.log(username+selectuser);
+		ChatRoom.findOne({userCodes: {$all:[username, selectuser]}}, function(err, result){
+			console.log("result"+result);
+	
+			if(err)	return console.log(err);
+			if(!err){
+				console.log(result.id);	
+				Chat.create({sender: username, receiver: selectuser, contents: message , _roomid: result.id}, function(err, results){
+
+					if(err) return console.log(err);
+					console.log(Chat);
+					console.log("chatCreateResult : "+results);
+					socket.emit('send message', results); //나한테도 전송
+					socket.to(socketIds[selectuser]).emit('send message', results); //남한테도 전송
+
+				});
+
+
+			}
+
+		});
+		
+		console.log(socketIds[selectuser]);
 		console.log(msgContent);
 
 	});
-
 
 	socket.on('join', function(roomId, selectuser){
 		console.log("join");
 		console.log(roomId);
 		console.log(selectuser);
-		socket.roomId = roomId;
 		socket.join(roomId);
 
 	})
@@ -121,25 +145,25 @@ io.on('connection', function(socket){
 		socket.selectuser = selectuser;
 		console.log(selectuser);
 		socket.name = username;
-		
-		var chatRoom = new ChatRoom({
-			userCodes: [username, selectuser],
-		});
-		chatRoom.save(function(err, result){
+		//찾는다
+		ChatRoom.findOne( {userCodes: [username, selectuser]}, function(err, result){
 
 			if(err){
-
 				console.log(err);
-	 
 				return;
-	 
 		   }
-		   
+		   //없으면 새로 만든다.
+		   if(!result){
+			   ChatRoom.create({name:[username, selectuser]}, function(err){
+			if(err) return console.log("Data Error: ", err);
 		   console.log(ChatRoom);
 
+		   	
+			});
+		}
+
 		});
-		socket.emit('add user', username);
-		socket.broadcast.emit('add user', username);
+		socket.emit('add user', selectuser);
 	});
 
 	socket.on('remove', function(){
@@ -206,7 +230,7 @@ app.get('/chat/getChatList/:userCode', function(req, res, err) {
 app.get('/chat/getChat/:roomId', function(req, res, err) {
 	console.log("/chat/getChat/");
 	console.log(req.params.roomId);
-	Chat.find({roomId: req.params.roomId}, function(err, messages){
+	Chat.find({_roomid: req.params.roomId}, function(err, messages){
 
 		if(err) {
 			console.error(err);

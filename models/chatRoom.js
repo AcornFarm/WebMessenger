@@ -9,4 +9,4 @@ var chatRoomSchema = new Schema( {
 
 });
 
-module.exports = mongoose.model('chatRoom', chatRoomSchema);
+module.exports = mongoose.model('ChatRoom', chatRoomSchema);
