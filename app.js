@@ -155,7 +155,7 @@ io.on('connection', function(socket){
 			   ChatRoom.create({userCodes:[username, selectuser]}, function(err, results){
 				if(err) return console.log("Data Error: ", err);
 				console.log(results);
-				socket.emit('add user', result);
+				socket.emit('add user', results);
 		   	
 				});
 		}
@@ -164,11 +164,17 @@ io.on('connection', function(socket){
 		
 	});
 
-	socket.on('remove', function(){
-		socket.emit('remove user', socket.username);
-		socket.broadcast.emit('remove user', socket.username);
-		removeUser(socket.username);
-	})
+	socket.on('deleteChat', function(roomId){
+		console.log("delete"+roomId);
+		ChatRoom.deleteOne({_id: roomId}, function(err){
+			if(err){
+				console.log(err);
+				return;
+		   }
+		});
+
+
+	});
 
 	// Remove user when disconnect
 	socket.on('disconnect', function(){
