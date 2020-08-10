@@ -75,10 +75,8 @@ io.on('connection', function(socket){
 		console.log("setSocketId");
 		socket.username = userName;
 		username = socket.username;
-		console.log("data"+username);
 		
 		socketIds[username] = socket.id;
-
 		console.log(socketIds);
 
 	});
@@ -86,7 +84,6 @@ io.on('connection', function(socket){
 		console.log("Client connected...");
 		console.log("소켓아이디"+socket.id);
 
-		console.log(socketIds);
 
 
 	// Print chat history
@@ -146,24 +143,25 @@ io.on('connection', function(socket){
 		console.log(selectuser);
 		socket.name = username;
 		//찾는다
-		ChatRoom.findOne( {userCodes: [username, selectuser]}, function(err, result){
+		ChatRoom.findOne({userCodes: {$all:[username, selectuser]}}, function(err, result){
 
 			if(err){
 				console.log(err);
 				return;
 		   }
+		   console.log(result);
 		   //없으면 새로 만든다.
-		   if(!result){
-			   ChatRoom.create({name:[username, selectuser]}, function(err){
-			if(err) return console.log("Data Error: ", err);
-		   console.log(ChatRoom);
-
+		   if(result==null){
+			   ChatRoom.create({userCodes:[username, selectuser]}, function(err, results){
+				if(err) return console.log("Data Error: ", err);
+				console.log(results);
+				socket.emit('add user', result);
 		   	
-			});
+				});
 		}
 
 		});
-		socket.emit('add user', selectuser);
+		
 	});
 
 	socket.on('remove', function(){
@@ -173,9 +171,11 @@ io.on('connection', function(socket){
 	})
 
 	// Remove user when disconnect
-	socket.on('disconnect', function(username){
+	socket.on('disconnect', function(){
 		socket.leave();
-		console.log(username+"user disconnected");
+		delete socketIds[username];
+		clearInterval(socket.interval);
+		console.log(username+" disconnected");
 	});
 
 });
