@@ -69,14 +69,17 @@ var socketIds = {};			//socket id들
 
 // On client connect
 io.on('connection', function(socket){
-	var username;
+	var userCode;
+	
 	//소켓아이디와 client 유저 아이디 연결
-	socket.on('setSocketId', function(userName){
+	socket.on('setSocketId', function(socketUser){
 		console.log("setSocketId");
-		socket.username = userName;
-		username = socket.username;
-		
-		socketIds[username] = socket.id;
+		userCode = socketUser.userCode;
+		socket.userCode = userCode;
+		socket.userName = socketUser.username;
+		socket.profileImg = socketUser.profileImg;
+		console.log("!!!"+ socketUser);
+		socketIds[userCode] = socket.id;
 		console.log(socketIds);
 
 	});
@@ -95,24 +98,28 @@ io.on('connection', function(socket){
 	var roomId;
 
 	// Sent/Receive chat messages
-	socket.on('send message', function(message, selectuser){
+	socket.on('send message', function(message, otherUser){
 		console.log("send message");
-		username = socket.username;
-		msgContent = msgFormat(username, message);
-		console.log(username+selectuser);
-		ChatRoom.findOne({userCodes: {$all:[username, selectuser]}}, function(err, result){
+		userCode = socket.userCode;
+		userName = socket.userName;
+		profileImg = socket.profileImg;
+		msgContent = msgFormat(userCode, message);
+		console.log(userCode+otherUser.userCode);
+		ChatRoom.findOne({'userCodes.userCode': { $all:[userCode, otherUser.userCode] } }, function(err, result){
 			console.log("result"+result);
 	
 			if(err)	return console.log(err);
 			if(!err){
-				console.log(result.id);	
-				Chat.create({sender: username, receiver: selectuser, contents: message , _roomid: result.id}, function(err, results){
+				console.log(result._id);	
+				Chat.create({sender: { userCode: userCode ,  profileImg: profileImg , userName: userName }, 
+					receiver: { userCode: otherUser.userCode ,  profileImg: otherUser.profileImg , userName: otherUser.userName }, 
+					contents: message , _roomid: result.id}, function(err, results){
 
 					if(err) return console.log(err);
 					console.log(Chat);
 					console.log("chatCreateResult : "+results);
 					socket.emit('send message', results); //나한테도 전송
-					socket.to(socketIds[selectuser]).emit('send message', results); //남한테도 전송
+					socket.to(socketIds[otherUser.userCode]).emit('send message', results); //남한테도 전송
 
 				});
 
@@ -121,7 +128,7 @@ io.on('connection', function(socket){
 
 		});
 		
-		console.log(socketIds[selectuser]);
+		console.log(socketIds[otherUser.userCode]);
 		console.log(msgContent);
 
 	});
@@ -135,15 +142,13 @@ io.on('connection', function(socket){
 	})
 
 	// chatting Room 만드는 코드
-	socket.on('createChat', function(username, selectuser){
+	socket.on('createChat', function(socketUser, otherUser){
 		
 		console.log("createChat");
-		console.log(username);
-		socket.selectuser = selectuser;
-		console.log(selectuser);
-		socket.name = username;
+		console.log(socketUser.userCode);
+		console.log(otherUser.userCode);
 		//찾는다
-		ChatRoom.findOne({userCodes: {$all:[username, selectuser]}}, function(err, result){
+		ChatRoom.findOne({'userCodes.userCode': {$all: [socketUser.userCode, otherUser.userCode]}}, function(err, result){
 
 			if(err){
 				console.log(err);
@@ -152,7 +157,8 @@ io.on('connection', function(socket){
 		   console.log(result);
 		   //없으면 새로 만든다.
 		   if(result==null){
-			   ChatRoom.create({userCodes:[username, selectuser]}, function(err, results){
+			   ChatRoom.create({userCodes:[{ userCode: socketUser.userCode ,  profileImg: socketUser.profileImg , userName: socketUser.userName },
+				{ userCode: otherUser.userCode ,  profileImg: otherUser.profileImg , userName: otherUser.userName }]}, function(err, results){
 				if(err) return console.log("Data Error: ", err);
 				console.log(results);
 				socket.emit('add user', results);
@@ -179,9 +185,9 @@ io.on('connection', function(socket){
 	// Remove user when disconnect
 	socket.on('disconnect', function(){
 		socket.leave();
-		delete socketIds[username];
+		delete socketIds[userCode];
 		clearInterval(socket.interval);
-		console.log(username+" disconnected");
+		console.log(userCode+" disconnected");
 	});
 
 });
@@ -220,7 +226,7 @@ app.post('/api/uploadImage',function (req, res){
 app.get('/chat/getChatList/:userCode', function(req, res, err) {
 	console.log("/chat/getChatList/");
 	console.log(req.params.userCode);
-	ChatRoom.find({userCodes: req.params.userCode}, function(err, roomList){
+	ChatRoom.find( {'userCodes.userCode' : req.params.userCode }, function(err, roomList){
 
 		if(err) {
 			console.err(err);

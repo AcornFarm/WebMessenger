@@ -4,8 +4,7 @@ var Schema = mongoose.Schema;
 
 var chatRoomSchema = new Schema( {
     
-    userCodes: [String],
-    chats: [{ type: Schema.Types.ObjectId, ref: 'chat' }]
+    userCodes: [{ userCode: String, profileImg: String, userName: String }]
 
 });
 
