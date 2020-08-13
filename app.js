@@ -98,7 +98,7 @@ io.on('connection', function(socket){
 	var roomId;
 
 	// Sent/Receive chat messages
-	socket.on('send message', function(message, otherUser){
+	socket.on('send message', function(message, socketUser, otherUser){
 		console.log("send message");
 		userCode = socket.userCode;
 		userName = socket.userName;
@@ -111,7 +111,7 @@ io.on('connection', function(socket){
 			if(err)	return console.log(err);
 			if(!err){
 				console.log(result._id);	
-				Chat.create({sender: { userCode: userCode ,  profileImg: profileImg , userName: userName }, 
+				Chat.create({sender: { userCode: userCode ,  profileImg: profileImg , userName: socketUser.userName }, 
 					receiver: { userCode: otherUser.userCode ,  profileImg: otherUser.profileImg , userName: otherUser.userName }, 
 					contents: message , _roomid: result.id}, function(err, results){
 
