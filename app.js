@@ -8,6 +8,9 @@ var mongoose = require('mongoose');					//mongodb connect
 //var route = require('./route.js');					//Api위한 router 설정
 var bodyParser =require('body-parser');
 var cors = require('cors');
+var moment =require('moment');
+require('moment-timezone');
+moment.tz.setDefault("Asia/Seoul");
 
 
 // Static file configuration
@@ -108,8 +111,9 @@ io.on('connection', function(socket){
 		ChatRoom.findOne({'userCodes.userCode': { $all:[userCode, otherUser.userCode] } }, function(err, result){
 			console.log("result"+result);
 	
-			if(err)	return console.log(err);
-			if(!err){
+			if(err) return console.log(err);
+			
+			if(result){
 				console.log(result._id);	
 				Chat.create({sender: { userCode: userCode ,  profileImg: profileImg , userName: socketUser.userName }, 
 					receiver: { userCode: otherUser.userCode ,  profileImg: otherUser.profileImg , userName: otherUser.userName }, 
@@ -123,6 +127,10 @@ io.on('connection', function(socket){
 
 				});
 
+
+			} else {
+			
+				socket.emit("err messege"); 
 
 			}
 
@@ -162,6 +170,7 @@ io.on('connection', function(socket){
 				if(err) return console.log("Data Error: ", err);
 				console.log(results);
 				socket.emit('add user', results);
+				socket.to(socketIds[otherUser.userCode]).emit('add user', results);
 		   	
 				});
 		}
@@ -172,12 +181,21 @@ io.on('connection', function(socket){
 
 	socket.on('deleteChat', function(roomId){
 		console.log("delete"+roomId);
-		ChatRoom.deleteOne({_id: roomId}, function(err){
-			if(err){
-				console.log(err);
-				return;
-		   }
-		});
+		console.log(socket.userCode);
+		ChatRoom.findOne({_id: roomId}, function(err, result){
+		
+			if(err) { console.log(err); return; }
+
+			if(result){
+		
+				ChatRoom.deleteOne({_id: roomId}, function(err){
+					if(err){
+						console.log(err);
+						return;
+					}
+				});
+			}
+	});
 
 
 	});
